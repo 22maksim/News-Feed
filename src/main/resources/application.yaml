@@ -1,0 +1,79 @@
+spring:
+  application:
+    name: news_feed
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/url_shortener_db
+    username: user
+    password: password
+    hikari:
+      maximum-pool-size: 10
+
+  data:
+    redis:
+      port: 6379
+      host: localhost
+      jedis:
+        pool:
+          max-active: 10
+          max-idle: 5
+          min-idle: 2
+          max-wait: 5000
+      database: 1
+
+    kafka:
+      broker:
+        id: 1
+      log:
+        dirs: /tmp/kafka-logs
+        segment:
+          bytes: 1073741824
+        retention:
+          hours: 168
+          check_interval_ms: 300000
+
+      zookeeper:
+        connect: zookeeper:2181
+      network:
+        num_threads: 12
+        advertised_listeners: PLAINTEXT://localhost:9092
+
+      io:
+        num_threads: 12
+      partitions:
+        default: 3
+      replication:
+        factor: 2
+      retention:
+        hours: 24
+        check_interval_ms: 300000
+        bytes: 273741824
+      segment:
+        bytes: 1073741824
+      producer:
+        retries: 3
+        acks: 1
+        compression_type: gzip
+        batch:
+          size: 32768  # 32 KB
+        linger:
+          ms: 50
+      consumer:
+        enable_auto_commit: false
+        auto_offset_reset: earliest
+        max_poll_records: 500
+        session_timeout_ms: 30000
+        replication:
+          min_insync_replicas: 1
+          unclean_leader_election_enable: false
+        fetch:
+          max_bytes: 5242880
+
+  server:
+    port: 8090
+
+  logging:
+    level:
+      root: info
+

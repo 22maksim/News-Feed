@@ -4,28 +4,22 @@ networks:
   kafka-net:
     driver: bridge
 
-services:
-  redis:
-    build:
-      context: .
-      dockerfile: Dockerfile.redis
-    container_name: cache_rediska
-    ports:
-      - "6379:6379"
-    networks:
-      - kafka-net
+x-environment:
+  &kafka-common-env
+  KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+  KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+  KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
 
+services:
   kafka:
-    image: confluentinc/cp-kafka:7.5.0 # Надежная и актуальная версия Kafka
+    image: confluentinc/cp-kafka:7.5.0
     container_name: kafka_newsfeed_1
     ports:
-      - "9092:9092" # Порт для подключения к Kafka
+      - "9092:9092"
     environment:
+      <<: *kafka-common-env
       KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
     depends_on:
       - zookeeper
     networks:
@@ -37,17 +31,16 @@ services:
     ports:
       - "9093:9092"
     environment:
+      <<: *kafka-common-env
       KAFKA_BROKER_ID: 2
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9093
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9093
     depends_on:
       - zookeeper
     networks:
       - kafka-net
 
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.0 # Образ Zookeeper от Confluent
+    image: confluentinc/cp-zookeeper:7.5.0
     container_name: zookeeper_server
     ports:
       - "2181:2181"

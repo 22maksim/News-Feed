@@ -29,16 +29,21 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.apache.kafka:kafka-streams")
 	implementation("org.springframework.kafka:spring-kafka")
+	implementation("org.apache.commons:commons-pool2:2.12.0")
+	implementation("com.fasterxml.jackson.core:jackson-databind:2.18.2")
+
+
 	compileOnly("org.projectlombok:lombok")
+
 	runtimeOnly("org.postgresql:postgresql")
+
 	annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
 	annotationProcessor("org.projectlombok:lombok")
-	testImplementation("com.h2database:h2:2.3.232")
-
 
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.springframework.batch:spring-batch-test")
 	testImplementation("org.springframework.kafka:spring-kafka-test")
+
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

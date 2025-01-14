@@ -24,21 +24,25 @@ spring:
 
     kafka:
       bootstrap-servers:
-        - kafka:9092
-        - kafka-2:9093
+        - localhost:9092
+        - localhost:9093
       producer:
         retries: 3
         acks: 1
         compression-type: gzip
         batch:
-          size: 32768 # 32 KB
+          size: 32768
         linger:
           ms: 50
+        key-serializer: org.apache.kafka.common.serialization.StringSerializer
+        value-serializer: org.apache.kafka.common.serialization.StringSerializer
       consumer:
-        enable-auto-commit: false
-        auto-offset-reset: earliest
-        max-poll-records: 500
+        enable-auto-commit: false  # Подтверждение вручную
+        auto-offset-reset: earliest  # Начать с самого начала
+        max-poll-records: 100
         session-timeout-ms: 30000
+        key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+        value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       partitions:
         default: 3
       replication:

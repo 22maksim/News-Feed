@@ -21,6 +21,7 @@ configurations {
 
 repositories {
 	mavenCentral()
+	maven("https://packages.confluent.io/maven/")
 }
 
 dependencies {
@@ -31,7 +32,6 @@ dependencies {
 	implementation("org.springframework.kafka:spring-kafka")
 	implementation("org.apache.commons:commons-pool2:2.12.0")
 	implementation("com.fasterxml.jackson.core:jackson-databind:2.18.2")
-
 
 	compileOnly("org.projectlombok:lombok")
 

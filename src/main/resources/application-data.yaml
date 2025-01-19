@@ -1,0 +1,9 @@
+properties-size:
+  size-user-feed: 500
+
+topic:
+  kafka:
+    post-create: post-create
+    post-views: post-views
+    comments: comments
+    likes: likes

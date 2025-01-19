@@ -2,6 +2,7 @@ spring:
   application:
     name: news_feed
 
+
   datasource:
     driver-class-name: org.postgresql.Driver
     url: jdbc:postgresql://localhost:5432/url_shortener_db
@@ -23,9 +24,7 @@ spring:
       database: 1
 
     kafka:
-      bootstrap-servers:
-        - localhost:9092
-        - localhost:9093
+      bootstrap-servers: localhost:9092  # Указываем только один брокер
       producer:
         retries: 3
         acks: 1
@@ -46,7 +45,7 @@ spring:
       partitions:
         default: 3
       replication:
-        factor: 2
+        factor: 1
       retention:
         hours: 24
         check-interval-ms: 300000
@@ -59,19 +58,23 @@ spring:
         id: 1
       listener:
         ack-mode: manual_immediate
+        concurrency: 3
       admin:
         auto-create-topics: true
       log:
         dirs: /tmp/kafka-logs
         segment:
-          bytes: 1073741824
-        retention:
+          bytes: 1073
           hours: 168
-          check-interval-ms: 300000
+          check-interval-ms: 300000741824
+        retention:
 
   server:
     port: 8090
 
   logging:
     level:
-      root: info
+      root: debug
+
+  profiles:
+    active: data

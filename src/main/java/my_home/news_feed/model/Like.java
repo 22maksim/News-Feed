@@ -4,18 +4,19 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.redis.core.RedisHash;
 
 import java.io.Serializable;
 
 @Getter
 @Setter
-@RedisHash("Event")
 @NoArgsConstructor
 @AllArgsConstructor
-public class Event implements Serializable {
-    private String id;
-    private String title;
-    private String description;
+@RedisHash("like")
+public class Like implements Serializable {
+    @Id
+    private Long id;
+    private Long postId;
+    private Long userId;
 }
-

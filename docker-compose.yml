@@ -7,7 +7,7 @@ networks:
 x-environment:
   &kafka-common-env
   KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-  KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+  KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
   KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
 
 services:
@@ -19,21 +19,7 @@ services:
     environment:
       <<: *kafka-common-env
       KAFKA_BROKER_ID: 1
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-    depends_on:
-      - zookeeper
-    networks:
-      - kafka-net
-
-  kafka-2:
-    image: confluentinc/cp-kafka:7.5.0
-    container_name: kafka_newsfeed_2
-    ports:
-      - "9093:9092"
-    environment:
-      <<: *kafka-common-env
-      KAFKA_BROKER_ID: 2
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
     depends_on:
       - zookeeper
     networks:

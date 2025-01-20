@@ -6,11 +6,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import my_home.news_feed.model.Post;
 import my_home.news_feed.model.event.PostCreateEvent;
+import my_home.news_feed.model.properties.SizeProperties;
 import my_home.news_feed.service.post.PostService;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -20,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 public class KafkaPostCreateConsumer {
     private final ObjectMapper mapper;
     private final PostService postServiceImpl;
+    private final SizeProperties sizeProperties;
 
     @KafkaListener(topics = "${topic.kafka.post-create}", groupId = "post-group-id", concurrency = "3")
     public void onMessage(String message, Acknowledgment acknowledgment) {
@@ -27,6 +30,7 @@ public class KafkaPostCreateConsumer {
             PostCreateEvent postCreateEvent = mapper.convertValue(message, PostCreateEvent.class);
             List<Long> userIds = mapper.readValue(postCreateEvent.getAuthorSubscriberIdsJson(), new TypeReference<>() {});
             Post post = getPost(postCreateEvent);
+            post.setId(postCreateEvent.getId());
 
             List<CompletableFuture<Void>> futures = userIds.stream()
                             .map(event -> postServiceImpl.eventCreatePost(event, post))
@@ -54,6 +58,7 @@ public class KafkaPostCreateConsumer {
                 .content(postCreateEvent.getContent())
                 .authorId(postCreateEvent.getAuthorId())
                 .createdAt(postCreateEvent.getCreatedAt())
+                .ttl(Duration.ofHours(sizeProperties.ttl()).toMillis())
                 .build();
     }
 }

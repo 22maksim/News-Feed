@@ -19,5 +19,4 @@ public class PostCreateEvent implements Serializable {
     private Long authorId;
     private String authorSubscriberIdsJson;
     private Instant createdAt;
-    // Собираем из этого посты в редис в сортед сет где ключ id = "post:" + id; сортируем по createdAt.
 }

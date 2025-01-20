@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.redis.core.RedisHash;
+import org.springframework.data.redis.core.TimeToLive;
 
 import java.io.Serializable;
 
@@ -13,10 +14,13 @@ import java.io.Serializable;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@RedisHash("like")
+@RedisHash(value = "like")
 public class Like implements Serializable {
     @Id
     private Long id;
     private Long postId;
     private Long userId;
+
+    @TimeToLive
+    private Long ttl;
 }

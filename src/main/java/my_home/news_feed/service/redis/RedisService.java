@@ -20,6 +20,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -53,9 +54,10 @@ public class RedisService {
                 redisScript,
                 Collections.singletonList(key),
                 sizeProperties.sizeUserFeed(), // ARGV[1] - максимальный размер множества
-                createdAt.toEpochMilli(),      // ARGV[2] - score для ZADD
-                postId                         // ARGV[3] - ID поста
+                createdAt.toEpochMilli(),      // ARGV[2] - score для ZADD , т.е. сортировка
+                postId                         // ARGV[3] - данные для созранения
         );
+        redisTemplate.expire(key, Duration.ofHours(sizeProperties.ttl()));
     }
 
 
@@ -108,8 +110,8 @@ public class RedisService {
         } catch (NullPointerException ex) {
 
             // Подумай как достать данные если их нет в бд. Это получается если у пользователя за последние сутки
-            // не произошло ничего с подписками, придется идти в бд и доставать последние 500 и закидывать их в редис
-
+            // не произошло ничего с подписками, придется идти в бд и доставать последние 200 и закидывать их в редис,
+            // а для данной операции получить последние 20 постов через фейгн клиент
             log.error("Error fetching post IDs from Redis for key: {}", key, ex);
         }
         return postIds;

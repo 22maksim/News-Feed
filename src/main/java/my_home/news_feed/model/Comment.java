@@ -17,7 +17,7 @@ import java.time.Instant;
 @RedisHash(value = "comment")
 public class Comment implements Serializable {
     @Id
-    private Long id;
+    private String id;
 
     private String comment;
 
@@ -31,4 +31,8 @@ public class Comment implements Serializable {
 
     @TimeToLive
     private Long ttl;
+
+    public void setKeyFromRedis() {
+        this.id = this.author_id + "_" + this.postId;
+    }
 }

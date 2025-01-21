@@ -7,16 +7,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import my_home.news_feed.exception.AuthorException;
 import my_home.news_feed.feign_client.UserClientService;
-import my_home.news_feed.model.Author;
-import my_home.news_feed.model.Comment;
-import my_home.news_feed.model.Like;
-import my_home.news_feed.model.Post;
+import my_home.news_feed.model.*;
 import my_home.news_feed.model.event.PostLikeEvent;
+import my_home.news_feed.model.event.PostViewsEvent;
 import my_home.news_feed.model.properties.SizeProperties;
-import my_home.news_feed.repository.AuthorRedisRepository;
-import my_home.news_feed.repository.CommentRedisRepository;
-import my_home.news_feed.repository.LikeRedisRepository;
-import my_home.news_feed.repository.PostRepository;
+import my_home.news_feed.repository.*;
 import my_home.news_feed.service.redis.RedisService;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -31,13 +26,14 @@ import java.util.concurrent.CompletableFuture;
 @Service
 @RequiredArgsConstructor
 public class PostServiceImpl implements PostService {
+    private final PostRepository postRepository;
     private final LikeRedisRepository likeRedisRepository;
     private final AuthorRedisRepository authorRedisRepository;
-    private final PostRepository postRepository;
-    private final RedisService redisService;
-    private final UserClientService userClientService;
     private final CommentRedisRepository commentRedisRepository;
+    private final PostViewsRedisRepository postViewsRedisRepository;
+    private final UserClientService userClientService;
     private final SizeProperties sizeProperties;
+    private final RedisService redisService;
     private final ObjectMapper mapper;
 
     @Async
@@ -65,6 +61,11 @@ public class PostServiceImpl implements PostService {
     @Async
     @Override
     public CompletableFuture<Void> eventCommentForPost(Comment comment) {
+        if (commentRedisRepository.existsById(comment.getId())) {
+            log.info("Comment with id {} is exists", comment.getId());
+            return CompletableFuture.completedFuture(null);
+        }
+        validateEventComment(comment);
         getAndSaveAuthor(comment.getAuthor_id());
         List<Comment> allComments = commentRedisRepository.findAllByPostId(comment.getPostId());
 
@@ -81,12 +82,11 @@ public class PostServiceImpl implements PostService {
     @Async
     @Override
     public CompletableFuture<Void> eventLikePost(PostLikeEvent event) {
-        if (likeRedisRepository.existsById(event.getPostId() + "_" + event.getUserId())) {
+        if (likeRedisRepository.existsById(event.getUserId() + "_" + event.getPostId())) {
             return CompletableFuture.completedFuture(null);
         }
-        if (!authorRedisRepository.existsById(event.getUserId())) {
-            getAndSaveAuthor(event.getUserId());
-        }
+        validateEventLike(event);
+        getAndSaveAuthor(event.getUserId());
         Like like = Like.builder()
                 .postId(event.getPostId())
                 .userId(event.getUserId())
@@ -96,6 +96,48 @@ public class PostServiceImpl implements PostService {
         likeRedisRepository.save(like);
 
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Async
+    @Override
+    public CompletableFuture<Void> eventViewPost(PostViewsEvent event) {
+        if (postViewsRedisRepository.existsById(event.getUserId() + "_" + event.getPostId())) {
+            log.info("Post views for {}, is exists", event.getPostId());
+            return CompletableFuture.completedFuture(null);
+        }
+        validateEventView(event);
+        getAndSaveAuthor(event.getUserId());
+
+        PostViews view = PostViews.builder()
+                .postId(event.getPostId())
+                .userId(event.getUserId())
+                .ttl(Duration.ofHours(sizeProperties.ttl()).toMillis())
+                .build();
+        view.setIdFromRedis();
+        postViewsRedisRepository.save(view);
+        return CompletableFuture.completedFuture(null);
+    }
+
+    private void validateEventView(PostViewsEvent event) {
+        if (event.getPostId() == null || event.getUserId() == null) {
+            log.error("Invalid event view");
+            throw new AuthorException("You need to specify postId and userId");
+        }
+    }
+
+    private void validateEventLike(PostLikeEvent event) {
+        if (event.getPostId() == null || event.getUserId() == null) {
+            log.error("Invalid event like");
+            throw new AuthorException("You need to specify postId and userId");
+        }
+    }
+
+    private void validateEventComment(Comment comment) {
+        if (comment.getComment() == null || comment.getComment().isEmpty() || comment.getAuthor_id() == null
+                || comment.getPostId() == null) {
+            log.error("Comment with id {} is not valid", comment.getId());
+            throw new AuthorException("Comment with id " + comment.getId() + " is not valid");
+        }
     }
 
     private void getAndSaveAuthor(Long userID) {
@@ -123,7 +165,7 @@ public class PostServiceImpl implements PostService {
                 .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
                 .limit(2)
                 .toList();
-        List<Long> deleteCommentsId = allComments.stream()
+        List<String> deleteCommentsId = allComments.stream()
                 .filter(com -> !actual.contains(com))
                 .map(Comment::getId)
                 .toList();

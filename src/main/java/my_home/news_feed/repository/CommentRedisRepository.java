@@ -7,6 +7,6 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface CommentRedisRepository extends CrudRepository<Comment, Long> {
+public interface CommentRedisRepository extends CrudRepository<Comment, String> {
     List<Comment> findAllByPostId(Long postId);
 }

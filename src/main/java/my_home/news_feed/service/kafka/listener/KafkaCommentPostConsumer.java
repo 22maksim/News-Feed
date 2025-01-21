@@ -41,6 +41,7 @@ public class KafkaCommentPostConsumer {
         }
         assert event != null;
         Comment comment = getComment(event);
+        comment.setKeyFromRedis();
 
         CompletableFuture<Void> future = postServiceImpl.eventCommentForPost(comment);
         future.whenComplete((r, e) -> {

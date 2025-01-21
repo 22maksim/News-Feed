@@ -3,6 +3,7 @@ package my_home.news_feed.service.post;
 import my_home.news_feed.model.Comment;
 import my_home.news_feed.model.Post;
 import my_home.news_feed.model.event.PostLikeEvent;
+import my_home.news_feed.model.event.PostViewsEvent;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -12,4 +13,6 @@ public interface PostService {
     CompletableFuture<Void> eventCommentForPost(Comment comment);
 
     CompletableFuture<Void> eventLikePost(PostLikeEvent event);
+
+    CompletableFuture<Void> eventViewPost(PostViewsEvent event);
 }

@@ -7,6 +7,7 @@ import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.redis.core.RedisHash;
 import org.springframework.data.redis.core.TimeToLive;
+import org.springframework.data.redis.core.index.Indexed;
 
 import java.io.Serializable;
 import java.time.Instant;
@@ -19,7 +20,10 @@ import java.time.Instant;
 public class PostViews implements Serializable {
     @Id
     private Long id;
+
+    @Indexed
     private Long postId;
+
     private Long userId;
     private Instant timeView;
 

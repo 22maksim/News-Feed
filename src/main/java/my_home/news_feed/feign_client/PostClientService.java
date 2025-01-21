@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.List;
 
-@FeignClient(name = "my_post_service", url = "${post-service.host}:${post-service.port}")
+@FeignClient(name = "my-post-service", url = "${post-service.host}:${post-service.port}")
 public interface PostClientService {
 
     @GetMapping("api/v1/posts/all")

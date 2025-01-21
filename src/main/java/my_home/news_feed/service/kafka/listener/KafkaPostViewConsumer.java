@@ -1,10 +1,8 @@
 package my_home.news_feed.service.kafka.listener;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import my_home.news_feed.model.event.PostLikeEvent;
 import my_home.news_feed.model.event.PostViewsEvent;
 import my_home.news_feed.service.post.PostService;
 import org.springframework.kafka.annotation.KafkaListener;

@@ -6,6 +6,7 @@ import my_home.news_feed.mapper.CommentMapper;
 import my_home.news_feed.mapper.LikeMapper;
 import my_home.news_feed.mapper.PostViewMapper;
 import my_home.news_feed.model.Post;
+import my_home.news_feed.model.PostViews;
 import my_home.news_feed.model.dto.CommentDto;
 import my_home.news_feed.model.dto.LikeDto;
 import my_home.news_feed.model.dto.PostViewsDto;

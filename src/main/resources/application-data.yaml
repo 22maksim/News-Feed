@@ -1,0 +1,18 @@
+properties-size:
+  size-user-feed: 500
+  ttl: 24 # для редис, указывается в часах
+
+topic:
+  kafka:
+    post-create: post-create
+    post-views: post-views
+    comments: comments
+    likes: likes
+
+user-service:
+  host: localhost
+  port: 8080
+
+post-service:
+  host: localhost
+  port: 7097

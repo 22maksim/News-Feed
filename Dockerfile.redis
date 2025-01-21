@@ -2,4 +2,8 @@ FROM redis:7.0
 
 EXPOSE 6379
 
-CMD ["redis-server"]
+# Копируем файл конфигурации в контейнер
+COPY redis.conf /redis.conf
+
+# Указываем Redis использовать файл конфигурации
+CMD ["redis-server", "/redis.conf"]

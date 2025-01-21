@@ -7,10 +7,20 @@ networks:
 x-environment:
   &kafka-common-env
   KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-  KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+  KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
   KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
 
 services:
+  redis:
+    build:
+      context: ./path-to-dockerfile
+      dockerfile: Dockerfile
+    container_name: rediska-news-feed
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis-data:/data # Монтируем папку для данных
+
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: kafka_newsfeed_1
@@ -19,21 +29,7 @@ services:
     environment:
       <<: *kafka-common-env
       KAFKA_BROKER_ID: 1
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-    depends_on:
-      - zookeeper
-    networks:
-      - kafka-net
-
-  kafka-2:
-    image: confluentinc/cp-kafka:7.5.0
-    container_name: kafka_newsfeed_2
-    ports:
-      - "9093:9092"
-    environment:
-      <<: *kafka-common-env
-      KAFKA_BROKER_ID: 2
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
     depends_on:
       - zookeeper
     networks:
@@ -70,3 +66,19 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: admin
     networks:
       - kafka-net
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.1
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+    ports:
+      - "9200:9200"
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.10.1
+    container_name: kibana
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5601:5601"

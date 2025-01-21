@@ -25,7 +25,12 @@ public class KafkaPostCreateConsumer {
     private final SizeProperties sizeProperties;
 
     @KafkaListener(topics = "${topic.kafka.post-create}", groupId = "post-group-id", concurrency = "3")
-    public void onMessage(String message, Acknowledgment acknowledgment) {
+    public void onMessage(String message, Acknowledgment ack) {
+        if (message == null) {
+            log.error("Message is null");
+            ack.acknowledge();
+            return;
+        }
         try {
             PostCreateEvent postCreateEvent = mapper.convertValue(message, PostCreateEvent.class);
             List<Long> userIds = mapper.readValue(postCreateEvent.getAuthorSubscriberIdsJson(), new TypeReference<>() {});
@@ -38,7 +43,7 @@ public class KafkaPostCreateConsumer {
             CompletableFuture<Void> allFuture = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
             allFuture.whenComplete((result, ex) -> {
                 if (ex == null) {
-                    acknowledgment.acknowledge();
+                    ack.acknowledge();
                     log.info("Received post create event: Id: {}. Title: {}", postCreateEvent.getId(), postCreateEvent.getTitle());
                 }
                 else {

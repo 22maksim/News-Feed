@@ -9,7 +9,10 @@ import my_home.news_feed.exception.AuthorException;
 import my_home.news_feed.feign_client.UserClientService;
 import my_home.news_feed.model.Author;
 import my_home.news_feed.model.Comment;
+import my_home.news_feed.model.Like;
 import my_home.news_feed.model.Post;
+import my_home.news_feed.model.event.PostLikeEvent;
+import my_home.news_feed.model.properties.SizeProperties;
 import my_home.news_feed.repository.AuthorRedisRepository;
 import my_home.news_feed.repository.CommentRedisRepository;
 import my_home.news_feed.repository.LikeRedisRepository;
@@ -18,6 +21,7 @@ import my_home.news_feed.service.redis.RedisService;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +37,7 @@ public class PostServiceImpl implements PostService {
     private final RedisService redisService;
     private final UserClientService userClientService;
     private final CommentRedisRepository commentRedisRepository;
+    private final SizeProperties sizeProperties;
     private final ObjectMapper mapper;
 
     @Async
@@ -60,7 +65,7 @@ public class PostServiceImpl implements PostService {
     @Async
     @Override
     public CompletableFuture<Void> eventCommentForPost(Comment comment) {
-        getAndSaveAuthor(comment);
+        getAndSaveAuthor(comment.getAuthor_id());
         List<Comment> allComments = commentRedisRepository.findAllByPostId(comment.getPostId());
 
         if (allComments.isEmpty() || allComments.size() < 3) {
@@ -73,22 +78,43 @@ public class PostServiceImpl implements PostService {
         return CompletableFuture.completedFuture(null);
     }
 
-    private void getAndSaveAuthor(Comment comment) {
-        if (!authorRedisRepository.existsById(comment.getAuthor_id())) {
-            HashMap<String, Long> hashUser = userClientService.getAuthor(comment.getAuthor_id());
+    @Async
+    @Override
+    public CompletableFuture<Void> eventLikePost(PostLikeEvent event) {
+        if (likeRedisRepository.existsById(event.getPostId() + "_" + event.getUserId())) {
+            return CompletableFuture.completedFuture(null);
+        }
+        if (!authorRedisRepository.existsById(event.getUserId())) {
+            getAndSaveAuthor(event.getUserId());
+        }
+        Like like = Like.builder()
+                .postId(event.getPostId())
+                .userId(event.getUserId())
+                .ttl(Duration.ofHours(sizeProperties.ttl()).toMillis())
+                .build();
+        like.setKeyFromRedis();
+        likeRedisRepository.save(like);
+
+        return CompletableFuture.completedFuture(null);
+    }
+
+    private void getAndSaveAuthor(Long userID) {
+        if (!authorRedisRepository.existsById(userID)) {
+            HashMap<String, Long> hashUser = userClientService.getAuthor(userID);
             if (hashUser == null || hashUser.size() != 1) {
-                log.info("Author id: {} is not found", comment.getAuthor_id() );
-                throw new AuthorException("Author id " + comment.getAuthor_id() + " is not found");
+                log.info("Author id: {} is not found", userID);
+                throw new AuthorException("Author id " + userID + " is not found");
             }
             Map.Entry<String, Long> entry = hashUser.entrySet().iterator().next();
 
             Author author = Author.builder()
                     .id(entry.getValue())
                     .username(entry.getKey())
+                    .ttl(Duration.ofHours(sizeProperties.ttl()).toMillis())
                     .build();
             authorRedisRepository.save(author);
         } else {
-            log.info("Author id: {} is contained in the Redis database", comment.getAuthor_id());
+            log.info("Author id: {} is contained in the Redis database", userID);
         }
     }
 

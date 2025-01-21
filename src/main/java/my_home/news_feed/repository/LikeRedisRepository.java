@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface LikeRedisRepository extends CrudRepository<Like, Long> {
+public interface LikeRedisRepository extends CrudRepository<Like, String> {
+
     List<Like> findAllByPostId(Long postId);
 }

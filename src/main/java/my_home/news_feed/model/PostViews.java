@@ -1,9 +1,6 @@
 package my_home.news_feed.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.redis.core.RedisHash;
 import org.springframework.data.redis.core.TimeToLive;
@@ -14,12 +11,13 @@ import java.time.Instant;
 
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @RedisHash(value = "post_views")
 public class PostViews implements Serializable {
     @Id
-    private Long id;
+    private String id;
 
     @Indexed
     private Long postId;
@@ -29,4 +27,8 @@ public class PostViews implements Serializable {
 
     @TimeToLive
     private Long ttl;
+
+    public void setIdFromRedis() {
+        this.id = this.userId + "_" + this.postId;
+    }
 }

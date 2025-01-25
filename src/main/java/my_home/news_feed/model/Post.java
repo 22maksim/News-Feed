@@ -8,6 +8,7 @@ import org.springframework.data.redis.core.index.Indexed;
 
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.UUID;
 
 @Getter
 @Setter

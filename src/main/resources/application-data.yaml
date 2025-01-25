@@ -1,6 +1,8 @@
 properties-size:
   size-user-feed: 500
-  ttl: 24 # для редис, указывается в часах
+  size-comment-set: 3
+  ttl: 24 # для редиски, указывается в часах
+
 
 topic:
   kafka:

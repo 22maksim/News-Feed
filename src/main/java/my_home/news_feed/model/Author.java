@@ -3,6 +3,7 @@ package my_home.news_feed.model;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.redis.core.RedisHash;
+import org.springframework.data.redis.core.TimeToLive;
 import org.springframework.data.redis.core.index.Indexed;
 
 @Getter
@@ -17,4 +18,7 @@ public class Author {
 
     @Indexed
     private String username; // получить через FeignClient
+
+    @TimeToLive
+    private Long ttl;
 }

@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import my_home.news_feed.model.event.PostViewsEvent;
-import my_home.news_feed.service.post.PostService;
+import my_home.news_feed.service.post.PostEventsService;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
@@ -16,7 +16,7 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class KafkaPostViewConsumer {
     private final ObjectMapper mapper;
-    private final PostService postServiceImpl;
+    private final PostEventsService postEventsServiceImpl;
 
     @KafkaListener(topics = {"${topic.kafka.post-views}"}, concurrency = "3", groupId = "post-views-group")
     public void listen(String message, Acknowledgment ack) {
@@ -28,7 +28,7 @@ public class KafkaPostViewConsumer {
         try {
             PostViewsEvent event = mapper.convertValue(message, PostViewsEvent.class);
 
-            CompletableFuture<Void> future = postServiceImpl.eventViewPost(event);
+            CompletableFuture<Void> future = postEventsServiceImpl.eventViewPost(event);
 
             future.whenComplete((v, e) -> {
                 if (e != null) {

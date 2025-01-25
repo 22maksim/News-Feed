@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import my_home.news_feed.model.event.PostLikeEvent;
-import my_home.news_feed.service.post.PostService;
+import my_home.news_feed.service.post.PostEventsService;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
@@ -16,7 +16,7 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class KafkaLikePostConsumer {
     private final ObjectMapper mapper;
-    private final PostService postServiceImpl;
+    private final PostEventsService postEventsServiceImpl;
 
     @KafkaListener(topics = {"${topic.kafka.likes}"}, concurrency = "3", groupId = "likes-id")
     public void listen(String message, Acknowledgment ack) {
@@ -33,7 +33,7 @@ public class KafkaLikePostConsumer {
         }
         assert event != null;
 
-        CompletableFuture<Void> future = postServiceImpl.eventLikePost(event);
+        CompletableFuture<Void> future = postEventsServiceImpl.eventLikePost(event);
         future.whenComplete((r, e) -> {
             if (e != null) {
                 log.error("Error while posting event like", e);

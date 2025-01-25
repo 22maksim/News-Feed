@@ -4,10 +4,11 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import my_home.news_feed.mapper.PostMapper;
 import my_home.news_feed.model.Post;
 import my_home.news_feed.model.event.PostCreateEvent;
 import my_home.news_feed.model.properties.SizeProperties;
-import my_home.news_feed.service.post.PostService;
+import my_home.news_feed.service.post.PostEventsService;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
@@ -21,8 +22,9 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class KafkaPostCreateConsumer {
     private final ObjectMapper mapper;
-    private final PostService postServiceImpl;
+    private final PostEventsService postEventsServiceImpl;
     private final SizeProperties sizeProperties;
+    private final PostMapper postMapper;
 
     @KafkaListener(topics = "${topic.kafka.post-create}", groupId = "post-group-id", concurrency = "3")
     public void onMessage(String message, Acknowledgment ack) {
@@ -34,11 +36,11 @@ public class KafkaPostCreateConsumer {
         try {
             PostCreateEvent postCreateEvent = mapper.convertValue(message, PostCreateEvent.class);
             List<Long> userIds = mapper.readValue(postCreateEvent.getAuthorSubscriberIdsJson(), new TypeReference<>() {});
-            Post post = getPost(postCreateEvent);
-            post.setId(postCreateEvent.getId());
+            Post post = postMapper.toEntity(postCreateEvent);
+            post.setTtl(Duration.ofHours(sizeProperties.ttl()).toMillis());
 
             List<CompletableFuture<Void>> futures = userIds.stream()
-                            .map(event -> postServiceImpl.eventCreatePost(event, post))
+                            .map(event -> postEventsServiceImpl.eventCreatePost(event, post))
                                     .toList();
             CompletableFuture<Void> allFuture = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
             allFuture.whenComplete((result, ex) -> {
@@ -54,16 +56,5 @@ public class KafkaPostCreateConsumer {
         } catch (Exception e) {
             log.error(e.getMessage(), e);
         }
-    }
-
-    private Post getPost(PostCreateEvent postCreateEvent) {
-        return Post.builder()
-                .id(postCreateEvent.getId())
-                .title(postCreateEvent.getTitle())
-                .content(postCreateEvent.getContent())
-                .authorId(postCreateEvent.getAuthorId())
-                .createdAt(postCreateEvent.getCreatedAt())
-                .ttl(Duration.ofHours(sizeProperties.ttl()).toMillis())
-                .build();
     }
 }

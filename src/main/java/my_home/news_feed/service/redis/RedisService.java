@@ -1,19 +1,20 @@
 package my_home.news_feed.service.redis;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import my_home.news_feed.mapper.CommentMapper;
 import my_home.news_feed.mapper.LikeMapper;
 import my_home.news_feed.mapper.PostViewMapper;
+import my_home.news_feed.model.Comment;
 import my_home.news_feed.model.Post;
-import my_home.news_feed.model.PostViews;
 import my_home.news_feed.model.dto.CommentDto;
 import my_home.news_feed.model.dto.LikeDto;
 import my_home.news_feed.model.dto.PostViewsDto;
 import my_home.news_feed.model.dto.response.PostResponseDto;
 import my_home.news_feed.model.dto.response.UserFeedResponseDto;
 import my_home.news_feed.model.properties.SizeProperties;
-import my_home.news_feed.repository.CommentRedisRepository;
 import my_home.news_feed.repository.LikeRedisRepository;
 import my_home.news_feed.repository.PostRepository;
 import my_home.news_feed.repository.PostViewsRedisRepository;
@@ -33,24 +34,35 @@ import java.util.stream.StreamSupport;
 @RequiredArgsConstructor
 public class RedisService {
     private final PostRepository postRepository;
-    private final CommentRedisRepository commentRedisRepository;
     private final LikeRedisRepository likeRedisRepository;
     private final PostViewsRedisRepository postViewsRedisRepository;
     private final CommentMapper commentMapper;
+    private final ObjectMapper mapper;
     private final LikeMapper likeMapper;
     private final PostViewMapper postViewMapper;
     private final SizeProperties sizeProperties;
     private final RedisTemplate<String, Object> redisTemplate;
 
-    public void addPostUserFeed(Long userId, Long postId, Instant createdAt) {
-        String key = "user:" + userId;
-        String luaScript =
-                "if redis.call('zcard', KEYS[1]) >= tonumber(ARGV[1]) then " +
-                        "  redis.call('zremrangebyrank', KEYS[1], 0, 0) " +
-                        "end " +
-                        "redis.call('zadd', KEYS[1], ARGV[2], ARGV[3])";
+    public void checkAndSaveComment(Comment comment) throws JsonProcessingException {
+        String key = "post/" + comment.getPostId() + "/comment";
+        DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>(getLuaScript(), Long.class);
 
-        DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>(luaScript, Long.class);
+        String commentJson = mapper.writeValueAsString(comment);
+
+        redisTemplate.execute(
+                redisScript,
+                Collections.singletonList(key),  // ключ сета редиса для комментариев
+                sizeProperties.sizeCommentSet(), // макс размер для сета комментов
+                comment.getCreatedAt().toEpochMilli(),          // по времени сортируем комментарии
+                commentJson                      // сохраняем коммент
+        );
+        redisTemplate.expire(key, Duration.ofHours(sizeProperties.ttl()));
+    }
+
+    public void addPostInUserFeed(Long userId, Long postId, Instant createdAt) {
+        String key = "user:" + userId;
+
+        DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>(getLuaScript(), Long.class);
         redisTemplate.execute(
                 redisScript,
                 Collections.singletonList(key),
@@ -79,9 +91,7 @@ public class RedisService {
     }
 
     private PostResponseDto buildPostResponseDto(Post post) {
-        List<CommentDto> commentsDtoList = commentRedisRepository.findAllByPostId(post.getId()).stream()
-                .filter(Objects::nonNull)
-                .map(commentMapper::toCommentDto).toList();
+        List<CommentDto> commentsDtoList = null;//=============================================================================
         List<LikeDto> likesDtoList = likeRedisRepository.findAllByPostId(post.getId()).stream()
                 .filter(Objects::nonNull)
                 .map(likeMapper::toLikeDto).toList();
@@ -118,4 +128,10 @@ public class RedisService {
         return postIds;
     }
 
+    private String getLuaScript() {
+        return "if redis.call('zcard', KEYS[1]) >= tonumber(ARGV[1]) then " +
+                "  redis.call('zremrangebyrank', KEYS[1], 0, 0) " +
+                "end " +
+                "redis.call('zadd', KEYS[1], ARGV[2], ARGV[3])";
+    }
 }

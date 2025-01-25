@@ -14,7 +14,7 @@ import java.time.Instant;
 @AllArgsConstructor
 public class PostCommentEvent implements Serializable {
     private String comment;
-    private Long author_id;
+    private Long authorId;
     private Long postId;
     private Instant createdAt;
 }

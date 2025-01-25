@@ -1,5 +1,6 @@
 package my_home.news_feed.model;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.redis.core.RedisHash;
@@ -14,25 +15,16 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@RedisHash(value = "comment")
 public class Comment implements Serializable {
-    @Id
-    private String id;
-
+    @NotNull
     private String comment;
 
-    @Indexed
-    private Long author_id;
+    @NotNull
+    private Long authorId;
 
-    @Indexed
+    @NotNull
     private Long postId;
 
+    @NotNull
     private Instant createdAt;
-
-    @TimeToLive
-    private Long ttl;
-
-    public void setKeyFromRedis() {
-        this.id = this.author_id + "_" + this.postId;
-    }
 }

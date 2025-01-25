@@ -25,11 +25,10 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class PostServiceImpl implements PostService {
+public class PostEventsServiceImpl implements PostEventsService {
     private final PostRepository postRepository;
     private final LikeRedisRepository likeRedisRepository;
     private final AuthorRedisRepository authorRedisRepository;
-    private final CommentRedisRepository commentRedisRepository;
     private final PostViewsRedisRepository postViewsRedisRepository;
     private final UserClientService userClientService;
     private final SizeProperties sizeProperties;
@@ -46,36 +45,24 @@ public class PostServiceImpl implements PostService {
             authorRedisRepository.save(author);
         }
         try {
-            List<Long> userSubscribersId = mapper.readValue(post.getAuthorSubscriberIdsJson(), new TypeReference<>() {
-            });
+            List<Long> userSubscribersId = mapper.readValue(post.getAuthorSubscriberIdsJson(), new TypeReference<>() {});
             getAndSaveAuthors(userSubscribersId);
         } catch (JsonProcessingException ex) {
             log.error("Json problem: {}, ex {}", post.getAuthorSubscriberIdsJson(), ex.toString());
         }
 
         postRepository.save(post);
-        redisService.addPostUserFeed(userID, post.getId(), post.getCreatedAt());
+        redisService.addPostInUserFeed(userID, post.getId(), post.getCreatedAt());
         return CompletableFuture.completedFuture(null);
     }
 
     @Async
     @Override
-    public CompletableFuture<Void> eventCommentForPost(Comment comment) {
-        if (commentRedisRepository.existsById(comment.getId())) {
-            log.info("Comment with id {} is exists", comment.getId());
-            return CompletableFuture.completedFuture(null);
-        }
+    public CompletableFuture<Void> eventCommentForPost(Comment comment) throws JsonProcessingException {
         validateEventComment(comment);
-        getAndSaveAuthor(comment.getAuthor_id());
-        List<Comment> allComments = commentRedisRepository.findAllByPostId(comment.getPostId());
+        getAndSaveAuthor(comment.getAuthorId());
 
-        if (allComments.isEmpty() || allComments.size() < 3) {
-            commentRedisRepository.save(comment);
-            return CompletableFuture.completedFuture(null);
-        } else {
-            removeNecessaryComments(allComments);
-        }
-
+        redisService.checkAndSaveComment(comment);
         return CompletableFuture.completedFuture(null);
     }
 
@@ -87,6 +74,7 @@ public class PostServiceImpl implements PostService {
         }
         validateEventLike(event);
         getAndSaveAuthor(event.getUserId());
+
         Like like = Like.builder()
                 .postId(event.getPostId())
                 .userId(event.getUserId())
@@ -133,10 +121,10 @@ public class PostServiceImpl implements PostService {
     }
 
     private void validateEventComment(Comment comment) {
-        if (comment.getComment() == null || comment.getComment().isEmpty() || comment.getAuthor_id() == null
+        if (comment.getComment() == null || comment.getComment().isEmpty() || comment.getAuthorId() == null
                 || comment.getPostId() == null) {
-            log.error("Comment with id {} is not valid", comment.getId());
-            throw new AuthorException("Comment with id " + comment.getId() + " is not valid");
+            log.error("Comment with id is not valid");
+            throw new AuthorException("Comment is not valid");
         }
     }
 
@@ -158,18 +146,6 @@ public class PostServiceImpl implements PostService {
         } else {
             log.info("Author id: {} is contained in the Redis database", userID);
         }
-    }
-
-    private void removeNecessaryComments(List<Comment> allComments) {
-        List<Comment> actual = allComments.stream()
-                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
-                .limit(2)
-                .toList();
-        List<String> deleteCommentsId = allComments.stream()
-                .filter(com -> !actual.contains(com))
-                .map(Comment::getId)
-                .toList();
-        commentRedisRepository.deleteAllById(deleteCommentsId);
     }
 
     private void getAndSaveAuthors(List<Long> userSubscribersId) {

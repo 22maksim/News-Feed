@@ -23,6 +23,9 @@ spring:
           max-wait: 5000
       database: 1
 
+    jackson:
+      deserializer: true
+
     kafka:
       bootstrap-servers: localhost:9092  # Указываем только один брокер
       producer:

@@ -27,6 +27,7 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.StreamSupport;
 
 @Slf4j
@@ -51,10 +52,10 @@ public class RedisService {
 
         redisTemplate.execute(
                 redisScript,
-                Collections.singletonList(key),  // ключ сета редиса для комментариев
-                sizeProperties.sizeCommentSet(), // макс размер для сета комментов
-                comment.getCreatedAt().toEpochMilli(),          // по времени сортируем комментарии
-                commentJson                      // сохраняем коммент
+                Collections.singletonList(key),         // ключ сета редиса для комментариев
+                sizeProperties.sizeCommentSet(),        // макс размер для сета комментов
+                comment.getCreatedAt().toEpochMilli(),  // по времени сортируем комментарии
+                commentJson                             // сохраняем коммент
         );
         redisTemplate.expire(key, Duration.ofHours(sizeProperties.ttl()));
     }
@@ -74,7 +75,7 @@ public class RedisService {
     }
 
 
-    public UserFeedResponseDto findUserFeed(Long userId, int page, int size) {
+    public UserFeedResponseDto collectUserFeed(Long userId, int page, int size) {
         String key = "user:" + userId;
 
         List<Long> postIds = getPostIdsFromRedis(key, page, size);
@@ -91,13 +92,10 @@ public class RedisService {
     }
 
     private PostResponseDto buildPostResponseDto(Post post) {
+        String keyComments = "post/" + post.getId() + "/comment";
         List<CommentDto> commentsDtoList = null;//=============================================================================
-        List<LikeDto> likesDtoList = likeRedisRepository.findAllByPostId(post.getId()).stream()
-                .filter(Objects::nonNull)
-                .map(likeMapper::toLikeDto).toList();
-        List<PostViewsDto> viewsDtoList = postViewsRedisRepository.findAllByPostId(post.getId()).stream()
-                .filter(Objects::nonNull)
-                .map(postViewMapper::toViewDto).toList();
+        List<LikeDto> likesDtoList = getLikeFromRedis(post.getId());
+        List<PostViewsDto> viewsDtoList = getPostViewsFromRedis(post.getId());
 
         return PostResponseDto.builder()
                 .id(post.getId())
@@ -121,11 +119,33 @@ public class RedisService {
         } catch (NullPointerException ex) {
 
             // Подумай как достать данные если их нет в бд. Это получается если у пользователя за последние сутки
-            // не произошло ничего с подписками, придется идти в бд и доставать последние 200 и закидывать их в редис,
+            // не произошло ничего с подписками, придется идти в бд и доставать последние 200 и закидывать их в kafka,
             // а для данной операции получить последние 20 постов через фейгн клиент
             log.error("Error fetching post IDs from Redis for key: {}", key, ex);
         }
         return postIds;
+    }
+
+    private List<CommentDto> getCommentsDtoFromRedis(String key) {
+        return Optional.ofNullable(redisTemplate.opsForZSet().reverseRange(key, 0, -1))
+                .orElse(Collections.emptySet())
+                .stream()
+                .filter(Objects::nonNull)
+                .map(str -> mapper.convertValue(str, Comment.class))
+                .map(commentMapper::toCommentDto)
+                .toList();
+    }
+
+    private List<LikeDto> getLikeFromRedis(Long postID) {
+        return likeRedisRepository.findAllByPostId(postID).stream()
+                .filter(Objects::nonNull)
+                .map(likeMapper::toLikeDto).toList();
+    }
+
+    private List<PostViewsDto> getPostViewsFromRedis(Long postID) {
+        return postViewsRedisRepository.findAllByPostId(postID).stream()
+                .filter(Objects::nonNull)
+                .map(postViewMapper::toViewDto).toList();
     }
 
     private String getLuaScript() {

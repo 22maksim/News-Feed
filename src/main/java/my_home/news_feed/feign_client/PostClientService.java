@@ -5,11 +5,13 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
+import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 
 @FeignClient(name = "my-post-service", url = "${post-service.host}:${post-service.port}")
 public interface PostClientService {
 
-    @GetMapping("api/v1/posts/all")
-    List<PostDto> getPosts(@RequestBody List<Long> ids);
+    @GetMapping("api/v1/posts/feed-posts")
+    HashMap<Long, Instant> getPosts();
 }

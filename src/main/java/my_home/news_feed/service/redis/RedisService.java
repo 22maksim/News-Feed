@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import my_home.news_feed.feign_client.PostClientService;
 import my_home.news_feed.mapper.CommentMapper;
 import my_home.news_feed.mapper.LikeMapper;
 import my_home.news_feed.mapper.PostViewMapper;
@@ -24,10 +25,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.StreamSupport;
 
 @Slf4j
@@ -37,6 +35,7 @@ public class RedisService {
     private final PostRepository postRepository;
     private final LikeRedisRepository likeRedisRepository;
     private final PostViewsRedisRepository postViewsRedisRepository;
+    private final PostClientService postClientService;
     private final CommentMapper commentMapper;
     private final ObjectMapper mapper;
     private final LikeMapper likeMapper;
@@ -61,22 +60,23 @@ public class RedisService {
     }
 
     public void addPostInUserFeed(Long userId, Long postId, Instant createdAt) {
-        String key = "user:" + userId;
+        String key = "user-posts:" + userId;
 
         DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>(getLuaScript(), Long.class);
+
         redisTemplate.execute(
                 redisScript,
                 Collections.singletonList(key),
                 sizeProperties.sizeUserFeed(), // ARGV[1] - максимальный размер множества
                 createdAt.toEpochMilli(),      // ARGV[2] - score для ZADD , т.е. сортировка
-                postId                         // ARGV[3] - данные для созранения
+                postId                         // ARGV[3] - данные для сохранения
         );
         redisTemplate.expire(key, Duration.ofHours(sizeProperties.ttl()));
     }
 
 
     public UserFeedResponseDto collectUserFeed(Long userId, int page, int size) {
-        String key = "user:" + userId;
+        String key = "user-posts:" + userId;
 
         List<Long> postIds = getPostIdsFromRedis(key, page, size);
 
@@ -93,7 +93,7 @@ public class RedisService {
 
     private PostResponseDto buildPostResponseDto(Post post) {
         String keyComments = "post/" + post.getId() + "/comment";
-        List<CommentDto> commentsDtoList = null;//=============================================================================
+        List<CommentDto> commentsDtoList = getCommentsDtoFromRedis(keyComments);
         List<LikeDto> likesDtoList = getLikeFromRedis(post.getId());
         List<PostViewsDto> viewsDtoList = getPostViewsFromRedis(post.getId());
 
@@ -111,16 +111,19 @@ public class RedisService {
     private List<Long> getPostIdsFromRedis(String key, int page, int size) {
         long start = (long) page * size;
         long end = start + size - 1;
-        List<Long> postIds = List.of();
+        List<Long> postIds;
+
         try {
-            postIds = Objects.requireNonNull(redisTemplate.opsForZSet().reverseRange(key, start, end)).stream()
+            postIds = Objects.requireNonNull(redisTemplate.opsForZSet().reverseRange(key, start, end))
+                    .stream()
                     .map(obj -> Long.getLong(obj.toString()))
                     .toList();
         } catch (NullPointerException ex) {
-
-            // Подумай как достать данные если их нет в бд. Это получается если у пользователя за последние сутки
-            // не произошло ничего с подписками, придется идти в бд и доставать последние 200 и закидывать их в kafka,
-            // а для данной операции получить последние 20 постов через фейгн клиент
+            postIds = postClientService.getPosts().entrySet().stream()
+                    .sorted((entry1, entry2) ->
+                            Long.compare(entry2.getValue().toEpochMilli(), entry1.getValue().toEpochMilli()))
+                    .map(Map.Entry::getKey)
+                    .toList();
             log.error("Error fetching post IDs from Redis for key: {}", key, ex);
         }
         return postIds;
